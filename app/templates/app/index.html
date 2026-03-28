@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyCast Weather</title>
+    <style>
+        :root {
+            --bg-top: #7cc6ff;
+            --bg-bottom: #eef7ff;
+            --panel: rgba(255, 255, 255, 0.18);
+            --panel-strong: rgba(255, 255, 255, 0.26);
+            --text-main: #0e2438;
+            --text-soft: rgba(14, 36, 56, 0.72);
+            --border: rgba(255, 255, 255, 0.35);
+            --shadow: 0 30px 80px rgba(21, 63, 110, 0.2);
+            --accent: #ff9a3c;
+        }
+
+        body.night {
+            --bg-top: #091540;
+            --bg-bottom: #142b66;
+            --panel: rgba(8, 18, 46, 0.4);
+            --panel-strong: rgba(11, 23, 57, 0.55);
+            --text-main: #f4f8ff;
+            --text-soft: rgba(244, 248, 255, 0.72);
+            --border: rgba(255, 255, 255, 0.14);
+            --shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+            --accent: #ffd166;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+            color: var(--text-main);
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.45), transparent 30%),
+                radial-gradient(circle at right 20%, rgba(255, 210, 130, 0.35), transparent 20%),
+                linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            overflow-x: hidden;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            border-radius: 999px;
+            pointer-events: none;
+            filter: blur(8px);
+        }
+
+        body::before {
+            width: 280px;
+            height: 280px;
+            background: rgba(255, 255, 255, 0.12);
+            top: 8%;
+            right: 10%;
+        }
+
+        body::after {
+            width: 180px;
+            height: 180px;
+            background: rgba(255, 170, 80, 0.18);
+            bottom: 12%;
+            left: 8%;
+        }
+
+        .app-shell {
+            width: min(100%, 1050px);
+            display: grid;
+            grid-template-columns: 1.2fr 0.9fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--panel);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+        }
+
+        .hero {
+            padding: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: auto -60px -70px auto;
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02));
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .search-bar input {
+            flex: 1;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.18);
+            color: var(--text-main);
+            padding: 16px 18px;
+            border-radius: 18px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .search-bar input::placeholder {
+            color: var(--text-soft);
+        }
+
+        .search-bar button {
+            border: 0;
+            border-radius: 18px;
+            padding: 16px 22px;
+            background: linear-gradient(135deg, var(--accent), #ff7a18);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            box-shadow: 0 18px 28px rgba(255, 122, 24, 0.28);
+        }
+
+        .search-bar button:hover {
+            transform: translateY(-1px);
+        }
+
+        .eyebrow {
+            font-size: 0.86rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--text-soft);
+            margin: 0 0 12px;
+        }
+
+        .location-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .location h1 {
+            margin: 0;
+            font-size: clamp(2.2rem, 5vw, 4.2rem);
+            line-height: 0.95;
+        }
+
+        .location p {
+            margin: 10px 0 0;
+            color: var(--text-soft);
+            font-size: 1rem;
+        }
+
+        .weather-badge {
+            text-align: center;
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 18px 20px;
+            min-width: 140px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .weather-badge img {
+            width: 88px;
+            height: 88px;
+        }
+
+        .weather-badge h2 {
+            margin: 2px 0 4px;
+            font-size: 1.1rem;
+        }
+
+        .weather-badge p {
+            margin: 0;
+            color: var(--text-soft);
+            text-transform: capitalize;
+        }
+
+        .temp-row {
+            margin-top: 34px;
+            display: flex;
+            align-items: flex-end;
+            gap: 18px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .temperature {
+            font-size: clamp(4rem, 12vw, 7rem);
+            line-height: 0.9;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .feels-like {
+            margin-bottom: 14px;
+            color: var(--text-soft);
+            font-size: 1rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            padding: 24px;
+        }
+
+        .stat {
+            padding: 20px;
+            border-radius: 22px;
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+        }
+
+        .stat span {
+            display: block;
+            font-size: 0.86rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-soft);
+            margin-bottom: 10px;
+        }
+
+        .stat strong {
+            font-size: 1.7rem;
+            font-weight: 700;
+        }
+
+        .side-panel {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .mini-card {
+            padding: 22px;
+            border-radius: 24px;
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+        }
+
+        .mini-card h3 {
+            margin: 0 0 12px;
+            font-size: 1.1rem;
+        }
+
+        .mini-card p {
+            margin: 0;
+            color: var(--text-soft);
+            line-height: 1.6;
+        }
+
+        .status-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+
+        .status-line::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #5dd39e, #2bb673);
+            box-shadow: 0 0 18px rgba(43, 182, 115, 0.45);
+        }
+
+        @media (max-width: 900px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 14px;
+            }
+
+            .hero,
+            .side-panel,
+            .stats {
+                padding: 18px;
+            }
+
+            .search-bar {
+                flex-direction: column;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .location-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .weather-badge {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="{{ theme }}">
+    <main class="app-shell">
+        <section class="card hero">
+            <form method="POST" class="search-bar">
+                {% csrf_token %}
+                <input type="text" name="city" placeholder="Search city..." value="{{ city }}">
+                <button type="submit">Check Now</button>
+            </form>
+
+            <p class="eyebrow">Live conditions</p>
+
+            <div class="location-row">
+                <div class="location">
+                    <h1>{{ city|title }}{% if country %}, {{ country }}{% endif %}</h1>
+                    <p>{{ day }}</p>
+                </div>
+
+                <div class="weather-badge">
+                    <img src="https://openweathermap.org/img/wn/{{ icon }}@2x.png" alt="{{ description }}">
+                    <h2>{{ weather_label }}</h2>
+                    <p>{{ description }}</p>
+                </div>
+            </div>
+
+            <div class="temp-row">
+                <p class="temperature">{{ temp }}&deg;</p>
+                <p class="feels-like">Feels like {{ feels_like }}&deg;</p>
+            </div>
+        </section>
+
+        <aside class="card side-panel">
+            <div class="mini-card">
+                <h3>Today at a glance</h3>
+                <p class="status-line">{{ weather_label }}</p>
+                <p style="margin-top: 12px;">A clean view of the current weather with a soft glass look, live city search, and quick-read metrics.</p>
+            </div>
+
+            <div class="mini-card">
+                <h3>Outside feel</h3>
+                <p>{{ description|capfirst }} in {{ city|title }} with a current temperature of {{ temp }}&deg;C.</p>
+            </div>
+        </aside>
+
+        <section class="card stats">
+            <div class="stat">
+                <span>Humidity</span>
+                <strong>{{ humidity }}%</strong>
+            </div>
+            <div class="stat">
+                <span>Wind Speed</span>
+                <strong>{{ wind_speed }} m/s</strong>
+            </div>
+            <div class="stat">
+                <span>Condition</span>
+                <strong>{{ weather_label }}</strong>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
